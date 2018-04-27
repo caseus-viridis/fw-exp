@@ -7,7 +7,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Generate data for associative retrieval task')
 parser.add_argument('--data-dir', default='./data', help='data directory (default: ./data)')
 parser.add_argument('-t', '--task', type=int, default=1, help='type of task (in (1, 2, 3), default: 1)')
-parser.add_argument('-n', '--num-pairs', type=int, default=25, help='number of K-V pairs (default: 25)')
+parser.add_argument('-n', '--num-pairs', type=int, default=8, help='number of K-V pairs (default: 8)')
 parser.add_argument('--num-train', type=int, default=100000, help='number of training examples (default: 100000)')
 parser.add_argument('--num-val', type=int, default=10000, help='number of validation examples (default: 10000)')
 parser.add_argument('--num-test', type=int, default=20000, help='number of test examples (default: 20000)')
@@ -93,6 +93,8 @@ d = {
 }
 
 data_file = 'associative-retrieval_task{}_{}pairs.pkl'.format(args.task, args.num_pairs)
+if not os.path.exists(args.data_dir):
+    os.makedirs(args.data_dir)
 with open(os.path.join(args.data_dir, data_file), 'wb') as f:
     pickle.dump(d, f, protocol=2)
 print("Generated data dumped to {}".format(data_file))
