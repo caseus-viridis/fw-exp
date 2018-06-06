@@ -62,7 +62,7 @@ def generate_art_data(num_examples, num_pairs, keys, vals, prompt, task, shuffle
     for i in range(num_examples):
         _x, _y = generate_art_example(num_pairs, keys, vals, prompt, task, shuffle_fn)
         x[i], y[i] = encode_art_example(_x, _y, word_idx)
-    return {'x': x, 'y': y, 'word_idx': word_idx, 'n': num_examples}
+    return {'x': x, 'y': y, 'word_idx': word_idx, 'k': num_pairs, 'n': num_examples, 't': task}
 
 
 def load_art_data(data_dir, task, num_pairs, dset):
@@ -100,12 +100,23 @@ class ARTDataset(Dataset):
         assert idx < self.__len__(), "index {} out of bound ({})".format(idx, self.__len__())
         return (self.data['x'][idx], self.data['y'][idx])
 
+    def get_word_idx(self):
+        return self.data['word_idx']
+
+    def get_vocab_size(self):
+        return len(self.get_word_idx())
+    
+    def get_seq_len(self):
+        return self.data['k'] * 2 + 3
+
 
 class ART(object):
 
     def __init__(self, data_dir='./data', task=1, num_pairs=8, batch_size=64, shuffle=True, cuda=False):
+        self.train = ARTDataset(data_dir, task, num_pairs, dset='train')
+        self.val = ARTDataset(data_dir, task, num_pairs, dset='val')
+        self.test = ARTDataset(data_dir, task, num_pairs, dset='test')
         kwargs = {'num_workers': 4, 'pin_memory': True} if cuda else {}
-        self.train = DataLoader(
-            ARTDataset(data_dir, task, num_pairs, dset='train'), batch_size=batch_size, shuffle=shuffle, **kwargs)
-        self.val = DataLoader(ARTDataset(data_dir, task, num_pairs, dset='val'), batch_size=batch_size, **kwargs)
-        self.test = DataLoader(ARTDataset(data_dir, task, num_pairs, dset='test'), batch_size=batch_size, **kwargs)
+        self.train_loader = DataLoader(self.train, shuffle=shuffle, batch_size=batch_size, **kwargs)
+        self.val_loader = DataLoader(self.val, batch_size=batch_size, **kwargs)
+        self.test_loader = DataLoader(self.test, batch_size=batch_size, **kwargs)
