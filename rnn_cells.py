@@ -238,8 +238,9 @@ class FastWeightRNNCell(_RNNCellBase):
         x = input
         h, A = state
         self.check_forward(x, h, A)
-        h_ = self.act(self.ln(self.rec_slow(h) + self.inp_slow(x)))
-        A_ = self.fast(A, h_)
+        _h0 = self.rec_slow(h) + self.inp_slow(x) # the "preliminary vector" before activation
+        A_, _h = self.fast(A, self.act(_h0)) # next A and query result 
+        h_ = self.act(self.ln(_h0 + _h)) # next h
         output = h_
         state = (h_, A_)
         return output, state

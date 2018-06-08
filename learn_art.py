@@ -37,8 +37,9 @@ dataset = ART(
     task=args.task,
     num_pairs=args.num_pairs,
     batch_size=args.batch_size,
-    shuffle=True
+    shuffle_train=True
 )
+print(dataset)
 
 # model
 model = ARTLearner(

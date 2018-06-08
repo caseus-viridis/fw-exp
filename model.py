@@ -78,5 +78,5 @@ class ARTLearner(nn.Module):
         states = self.rnn.get_state_list()
         for t in range(self.seq_len):
             x, states = self.rnn(self.emb(input[:, t]), states)
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
         return self.emt(x)

@@ -94,6 +94,9 @@ def load_art_data(data_dir, task, num_pairs, dset):
 class ARTDataset(Dataset):
 
     def __init__(self, data_dir='./data', task=1, num_pairs=8, dset='train'):
+        self.task = task
+        self.num_pairs = num_pairs
+        self.dset = dset
         self.data = load_art_data(data_dir, task, num_pairs, dset)
 
     def __len__(self):
@@ -112,13 +115,50 @@ class ARTDataset(Dataset):
     def get_seq_len(self):
         return self.data['k'] * 2 + 3
 
+    def example_string(self, idx):
+        x, y = self.__getitem__(idx)
+        idx_word = dict((v, k) for k, v in self.get_word_idx().iteritems())
+        y = idx_word[y]
+        x = ''.join(map(lambda _x: idx_word[_x], x))
+        return x + " -> " + y
+
+    def __repr__(self):
+        s = "dset = {}, n = {}".format(
+            self.dset,
+            self.__len__()
+        )
+        s += '\n\t' + self.example_string(0)
+        s += '\n\t' + '...'
+        s += '\n\t' + self.example_string(-1)
+        return s
+
 
 class ART(object):
 
-    def __init__(self, data_dir='./data', task=1, num_pairs=8, batch_size=64, shuffle=True):
+    def __init__(self, data_dir='./data', task=1, num_pairs=8, batch_size=64, shuffle_train=True):
+        self.task = task
+        self.num_pairs = num_pairs
+        self.shuffle_train=shuffle_train
+        self.batch_size = batch_size
         self.train = ARTDataset(data_dir, task, num_pairs, dset='train')
         self.val = ARTDataset(data_dir, task, num_pairs, dset='val')
         self.test = ARTDataset(data_dir, task, num_pairs, dset='test')
-        self.train_loader = DataLoader(self.train, shuffle=shuffle, batch_size=batch_size, drop_last=True)
+        self.train_loader = DataLoader(self.train, shuffle=shuffle_train, batch_size=batch_size, drop_last=True)
         self.val_loader = DataLoader(self.val, batch_size=batch_size, drop_last=True)
         self.test_loader = DataLoader(self.test, batch_size=batch_size, drop_last=True)
+
+    def __repr__(self):
+        s = "Associative retrieval task data: \ntask = {}, nkeys = {}, nvals = {}, prompt = {}, K = {}, batch_size = {}, shuffle_train = {}\n".format(
+            self.task, 
+            len(KEYS), 
+            len(VALS),
+            PROMPT,
+            self.num_pairs, 
+            self.batch_size, 
+            self.shuffle_train
+        )
+        return s + '\n'.join([
+            self.train.__repr__(), 
+            self.val.__repr__(),
+            self.test.__repr__()
+        ])
