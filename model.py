@@ -33,12 +33,16 @@ def create_rnn(cell_type, embed_size, hidden_size, num_layers, **rnn_config):
         raise RuntimeError("unsupported RNN cell type {}".format(cell_type))
     return RNNCellStack([rnn_cell(embed_size if _i==0 else hidden_size, hidden_size, **rnn_config) for _i in range(num_layers)])
 
+def list_cuda(container):
+    assert isinstance(container, list), "container must be a list"
+    return [item.cuda() if isinstance(item, torch.Tensor) else tuple([subitem.cuda() for subitem in item]) for item in container]
+
 
 class ARTLearner(nn.Module):
     """
     Model that learns the associative retrieval task
     """
-    def __init__(self, batch_size, seq_len, vocab_size, embed_size, hidden_size, num_layers=1, cell_type='fw-rnn', **rnn_config):
+    def __init__(self, batch_size, seq_len, vocab_size, embed_size, hidden_size, num_layers=1, cell_type='fw-rnn', cuda=False, **rnn_config):
         super(ARTLearner, self).__init__()
 
         self.batch_size = batch_size
@@ -48,6 +52,7 @@ class ARTLearner(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.cell_type = cell_type
+        self._cuda = cuda
 
         self.build_model(**rnn_config)
         self.init_parameters()
@@ -63,13 +68,16 @@ class ARTLearner(nn.Module):
             nn.ReLU(), 
             nn.Linear(self.embed_size, self.vocab_size)
         )
+        if self._cuda:
+            self.cuda()
 
     def init_parameters(self):
         pass
-        # nn.init.normal_(self.emb.weight, 0., 0.1)
 
     def forward(self, input):
         states = self.rnn.zero_states(self.batch_size)
+        if self._cuda:
+            states = list_cuda(states)
         for t in range(self.seq_len):
             x, states = self.rnn(self.emb(input[:, t]), states)
         return self.emt(x)

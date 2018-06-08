@@ -58,16 +58,16 @@ class _RNNCellBase(nn.Module):
 
     def zero_state(self, batch_size=1):
         if isinstance(self, (RNNCell)):
-            return torch.zeros(batch_size, self.hidden_size).cuda()
+            return torch.zeros(batch_size, self.hidden_size)
         elif isinstance(self, (LSTMCell)):
             return (
-                torch.zeros(batch_size, self.hidden_size).cuda(), 
-                torch.zeros(batch_size, self.hidden_size).cuda()
+                torch.zeros(batch_size, self.hidden_size), 
+                torch.zeros(batch_size, self.hidden_size)
             )
         elif isinstance(self, (FastWeightRNNCell)):
             return (
-                torch.zeros(batch_size, self.hidden_size).cuda(), 
-                torch.zeros(batch_size, self.hidden_size, self.hidden_size).cuda()
+                torch.zeros(batch_size, self.hidden_size), 
+                torch.zeros(batch_size, self.hidden_size, self.hidden_size)
             )
         else:
             raise RuntimeError("zero_state() not implemented for {}".format(self))
@@ -233,5 +233,20 @@ class FastWeightLSTMCell(_RNNCellBase):
     Fast weight LSTM cell
     Keller et al. 2018
     """
-    pass
-    # [TODO] implement this
+    def __init__(self, input_size, hidden_size, bias=True, nonlinearity="relu", lam=1., eta=1., **kwargs):
+        super(FastWeightLSTMCell, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.bias = bias
+        self.nonlinearity = nonlinearity
+        self.lam = lam
+        self.eta = eta
+
+    def check_forward(self, x, h, c, A):
+        self.check_forward_input(x)
+        self.check_forward_hidden(x, h, '[0]')
+        self.check_forward_hidden(x, c, '[1]')
+        self.check_forward_fast_weight(x, h, A)
+
+    def forward(self, input, state):
+        pass

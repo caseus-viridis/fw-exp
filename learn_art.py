@@ -50,19 +50,18 @@ model = ARTLearner(
     hidden_size=args.hidden_size,
     num_layers=args.layers,
     cell_type=args.cell,
+    cuda=args.cuda,
     bias=True,
     nonlinearity='relu',
     lam=args.lam,
     eta=args.eta
 )
-if args.cuda:
-    model.cuda()
 print(model)
 
 loss_func = nn.CrossEntropyLoss()
 optimizer = Adam(model.parameters(), lr=args.lr)
 
-# training and testing
+# training
 def train(epoch):
     model.train()
     total_loss = 0.
