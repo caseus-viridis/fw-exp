@@ -189,9 +189,9 @@ class LSTMCell(_RNNCellBase):
     def forward(self, input, state):
         x = input
         h, c = state
-        check_forward(self, x, h, c)
+        self.check_forward(x, h, c)
         h_, c_ = self._backend.LSTMCell(
-            input, hx,
+            x, (h, c),
             self.weight_ih, self.weight_hh,
             self.bias_ih, self.bias_hh,
         )

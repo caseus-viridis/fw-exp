@@ -58,7 +58,7 @@ if args.cuda:
     model.cuda()
 print(model)
 
-loss_fn = nn.CrossEntropyLoss()
+loss_func = nn.CrossEntropyLoss()
 optimizer = Adam(model.parameters(), lr=args.lr)
 
 # training and testing
@@ -68,15 +68,28 @@ def train(epoch):
     for batch, (x, y) in enumerate(dataset.train_loader):
         if args.cuda:
             x, y = x.cuda(), y.cuda()
-        loss = loss_fn(model(x), y)
+        loss = loss_func(model(x), y)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
     print("Epoch {}: training loss = {:.4f}".format(epoch, total_loss/(batch+1)))
+    test()
 
 def test():
     model.eval()
+    test_loss = correct = 0.
+    with torch.no_grad():
+        for batch, (x, y) in enumerate(dataset.test_loader):
+            if args.cuda:
+                x, y = x.cuda(), y.cuda()
+            logits = model(x)
+            test_loss += loss_func(logits, y).item()
+            pred = logits.max(1, keepdim=True)[1]
+            correct += pred.eq(y.view_as(pred)).sum().item()
+    test_loss /= batch + 1
+    correct /= (batch + 1) * args.batch_size
+    print("\ttest loss = {:.4f}, correct = {:.2f}%".format(test_loss, correct*100))
     
 for epoch in range(args.epochs):
     train(epoch)

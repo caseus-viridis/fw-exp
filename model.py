@@ -51,6 +51,7 @@ class ARTLearner(nn.Module):
 
         self.build_model(**rnn_config)
         self.init_rnn_states()
+        self.init_parameters()
     
     def build_model(self, **rnn_config):
         # embedding layer
@@ -64,6 +65,9 @@ class ARTLearner(nn.Module):
             nn.Linear(self.embed_size, self.vocab_size)
         )
 
+    def init_parameters(self):
+        nn.init.normal_(self.emb.weight, 0., 0.1)
+
     def init_rnn_states(self):
         # register persistent buffers for all RNN states, and return handles
         self.rnn.register_state_buffers(self.batch_size)
@@ -74,4 +78,5 @@ class ARTLearner(nn.Module):
         states = self.rnn.get_state_list()
         for t in range(self.seq_len):
             x, states = self.rnn(self.emb(input[:, t]), states)
+            import ipdb; ipdb.set_trace()
         return self.emt(x)
