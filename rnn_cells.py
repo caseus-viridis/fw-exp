@@ -56,11 +56,21 @@ class _RNNCellBase(nn.Module):
             raise RuntimeError(
                 "Unknown nonlinearity: {}".format(self.nonlinearity))
 
-    def register_state_buffer(self):
-        raise NotImplementedError("RNN cell instance {} does not have register_state_buffer() implemented".format(self))
-
-    def state(self):
-        raise NotImplementedError("RNN cell instance {} does not have state() implemented".format(self))
+    def zero_state(self, batch_size=1):
+        if isinstance(self, (RNNCell)):
+            return torch.zeros(batch_size, self.hidden_size).cuda()
+        elif isinstance(self, (LSTMCell)):
+            return (
+                torch.zeros(batch_size, self.hidden_size).cuda(), 
+                torch.zeros(batch_size, self.hidden_size).cuda()
+            )
+        elif isinstance(self, (FastWeightRNNCell)):
+            return (
+                torch.zeros(batch_size, self.hidden_size).cuda(), 
+                torch.zeros(batch_size, self.hidden_size, self.hidden_size).cuda()
+            )
+        else:
+            raise RuntimeError("zero_state() not implemented for {}".format(self))
 
 
 class RNNCellStack(nn.Module):
@@ -93,28 +103,13 @@ class RNNCellStack(nn.Module):
             hidden_size = cell.hidden_size
 
     def forward(self, input, states):
-        output = input
-        for cell, state in zip(self.cell_list, states):
-            output, state = cell(output, state)
-        return output, states
+        output, states_ = input, states
+        for i in range(self.num_layers):
+            output, states_[i] = self.cell_list[i](output, states[i])
+        return output, states_
 
-    def register_state_buffers(self, batch_size):
-        for cell in self.cell_list:
-            cell.register_state_buffer(batch_size)
-
-    def states(self):
-        return iter([cell.state() for cell in self.cell_list])
-
-    def get_state_list(self):
-        return [s for s in self.states()]
-
-    def zero_states(self):
-        for state in self.states():
-            if isinstance(state, tuple):
-                for s in state:
-                    s.fill_(0.)
-            else:
-                state.fill_(0.)
+    def zero_states(self, batch_size=1):
+        return [cell.zero_state(batch_size) for cell in self.cell_list]
 
 
 class RNNCell(_RNNCellBase):
@@ -157,12 +152,6 @@ class RNNCell(_RNNCellBase):
         )
         return output, state
 
-    def register_state_buffer(self, batch_size):
-        self.register_buffer('h', torch.Tensor(batch_size, self.hidden_size))
-
-    def state(self):
-        return self.h
-
 
 class LSTMCell(_RNNCellBase):
 
@@ -198,13 +187,6 @@ class LSTMCell(_RNNCellBase):
         output = h_
         state = (h_, c_)
         return output, state
-
-    def register_state_buffer(self, batch_size):
-        self.register_buffer('h', torch.Tensor(batch_size, self.hidden_size))
-        self.register_buffer('c', torch.Tensor(batch_size, self.hidden_size))
-
-    def state(self):
-        return (self.h, self.c)
 
 
 class FastWeightRNNCell(_RNNCellBase):
@@ -245,13 +227,6 @@ class FastWeightRNNCell(_RNNCellBase):
         state = (h_, A_)
         return output, state
 
-    def register_state_buffer(self, batch_size):
-        self.register_buffer('h', torch.Tensor(batch_size, self.hidden_size))
-        self.register_buffer('A', torch.Tensor(batch_size, self.hidden_size, self.hidden_size))
-
-    def state(self):
-        return (self.h, self.A)
-
 
 class FastWeightLSTMCell(_RNNCellBase):
     """
@@ -260,5 +235,3 @@ class FastWeightLSTMCell(_RNNCellBase):
     """
     pass
     # [TODO] implement this
-
-

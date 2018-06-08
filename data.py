@@ -148,7 +148,7 @@ class ART(object):
         self.test_loader = DataLoader(self.test, batch_size=batch_size, drop_last=True)
 
     def __repr__(self):
-        s = "Associative retrieval task data: \ntask = {}, nkeys = {}, nvals = {}, prompt = {}, K = {}, batch_size = {}, shuffle_train = {}\n".format(
+        s = "Associative retrieval task dataset: \ntask = {}, nkeys = {}, nvals = {}, prompt = {}, K = {}, batch_size = {}, shuffle_train = {}\n".format(
             self.task, 
             len(KEYS), 
             len(VALS),

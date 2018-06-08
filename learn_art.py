@@ -18,7 +18,7 @@ parser.add_argument('-c', '--cell', type=str, default='fw-rnn', help='RNN cell t
 parser.add_argument('-es', '--embed-size', type=int, default=100, help='embedding size (default: 100)')
 parser.add_argument('-hs', '--hidden-size', type=int, default=100, help='hidden size (default: 100)')
 parser.add_argument('-l', '--layers', type=int, default=1, help='number of layers (default: 1)')
-parser.add_argument('-e', '--epochs', type=int, default=1000, help='number of epochs (default: 1000)')
+parser.add_argument('-e', '--epochs', type=int, default=100, help='number of epochs (default: 100)')
 parser.add_argument('--lr', type=float, default=1e-4, help='learning rate (default: 1e-4)')
 parser.add_argument('--lam', type=float, default=1., help='lambda (default: 1.)')
 parser.add_argument('--eta', type=float, default=1., help='eta (default: 1.)')
@@ -75,7 +75,22 @@ def train(epoch):
         optimizer.step()
         total_loss += loss.item()
     print("Epoch {}: training loss = {:.4f}".format(epoch, total_loss/(batch+1)))
-    test()
+    val()
+
+def val():
+    model.eval()
+    val_loss = correct = 0.
+    with torch.no_grad():
+        for batch, (x, y) in enumerate(dataset.val_loader):
+            if args.cuda:
+                x, y = x.cuda(), y.cuda()
+            logits = model(x)
+            val_loss += loss_func(logits, y).item()
+            pred = logits.max(1, keepdim=True)[1]
+            correct += pred.eq(y.view_as(pred)).sum().item()
+    val_loss /= batch + 1
+    correct /= (batch + 1) * args.batch_size
+    print("\tvalidation loss = {:.4f}, correct = {:.2f}%".format(val_loss, correct*100))
 
 def test():
     model.eval()
@@ -94,4 +109,3 @@ def test():
     
 for epoch in range(args.epochs):
     train(epoch)
-

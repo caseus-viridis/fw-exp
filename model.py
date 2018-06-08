@@ -50,7 +50,6 @@ class ARTLearner(nn.Module):
         self.cell_type = cell_type
 
         self.build_model(**rnn_config)
-        self.init_rnn_states()
         self.init_parameters()
     
     def build_model(self, **rnn_config):
@@ -66,17 +65,11 @@ class ARTLearner(nn.Module):
         )
 
     def init_parameters(self):
-        nn.init.normal_(self.emb.weight, 0., 0.1)
-
-    def init_rnn_states(self):
-        # register persistent buffers for all RNN states, and return handles
-        self.rnn.register_state_buffers(self.batch_size)
-        # zero their entries
-        self.rnn.zero_states()
+        pass
+        # nn.init.normal_(self.emb.weight, 0., 0.1)
 
     def forward(self, input):
-        states = self.rnn.get_state_list()
+        states = self.rnn.zero_states(self.batch_size)
         for t in range(self.seq_len):
             x, states = self.rnn(self.emb(input[:, t]), states)
-            # import ipdb; ipdb.set_trace()
         return self.emt(x)
