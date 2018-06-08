@@ -2,7 +2,9 @@ import os
 import pickle
 import random
 import numpy as np
+import torch
 from torch.utils.data import Dataset, DataLoader
+
 
 NUM_EXAMPLES = {'train': 100000, 'val': 10000, 'test': 20000}  # sizes of datasets
 KEYS = map(chr, range(97, 97 + 26))  # 26 letters
@@ -50,15 +52,16 @@ def generate_art_example(num_pairs, keys, vals, prompt, task, shuffle_fn):
 
 def encode_art_example(x, y, word_idx):
     x_enc = np.array([word_idx[w] for w in x])
-    y_onehot = np.zeros([len(word_idx)])
-    y_onehot[word_idx[y]] = 1
-    return x_enc, y_onehot
+    # y_onehot = np.zeros([len(word_idx)])
+    # y_onehot[word_idx[y]] = 1
+    y_enc = word_idx[y]
+    return x_enc, y_enc
 
 
 def generate_art_data(num_examples, num_pairs, keys, vals, prompt, task, shuffle_fn):
     word_idx = code_book(keys, vals, prompt)
-    x = np.zeros([num_examples, num_pairs * 2 + 3], dtype=np.float32)
-    y = np.zeros([num_examples, len(word_idx)], dtype=np.float32)
+    x = np.zeros([num_examples, num_pairs * 2 + 3], dtype=np.int64)
+    y = np.zeros(num_examples, dtype=np.int64)
     for i in range(num_examples):
         _x, _y = generate_art_example(num_pairs, keys, vals, prompt, task, shuffle_fn)
         x[i], y[i] = encode_art_example(_x, _y, word_idx)
@@ -112,11 +115,10 @@ class ARTDataset(Dataset):
 
 class ART(object):
 
-    def __init__(self, data_dir='./data', task=1, num_pairs=8, batch_size=64, shuffle=True, cuda=False):
+    def __init__(self, data_dir='./data', task=1, num_pairs=8, batch_size=64, shuffle=True):
         self.train = ARTDataset(data_dir, task, num_pairs, dset='train')
         self.val = ARTDataset(data_dir, task, num_pairs, dset='val')
         self.test = ARTDataset(data_dir, task, num_pairs, dset='test')
-        kwargs = {'num_workers': 4, 'pin_memory': True} if cuda else {}
-        self.train_loader = DataLoader(self.train, shuffle=shuffle, batch_size=batch_size, **kwargs)
-        self.val_loader = DataLoader(self.val, batch_size=batch_size, **kwargs)
-        self.test_loader = DataLoader(self.test, batch_size=batch_size, **kwargs)
+        self.train_loader = DataLoader(self.train, shuffle=shuffle, batch_size=batch_size, drop_last=True)
+        self.val_loader = DataLoader(self.val, batch_size=batch_size, drop_last=True)
+        self.test_loader = DataLoader(self.test, batch_size=batch_size, drop_last=True)
