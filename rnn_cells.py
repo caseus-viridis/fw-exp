@@ -69,6 +69,12 @@ class _RNNCellBase(nn.Module):
                 torch.zeros(batch_size, self.hidden_size), 
                 torch.zeros(batch_size, self.hidden_size, self.hidden_size)
             )
+        elif isinstance(self, (FastWeightLSTMCell)):
+            return (
+                torch.zeros(batch_size, self.hidden_size), 
+                torch.zeros(batch_size, self.hidden_size), 
+                torch.zeros(batch_size, self.hidden_size, self.hidden_size)
+            )
         else:
             raise RuntimeError("zero_state() not implemented for {}".format(self))
 
@@ -242,6 +248,15 @@ class FastWeightLSTMCell(_RNNCellBase):
         self.lam = lam
         self.eta = eta
 
+        self.rec_slow = nn.Linear(hidden_size, 4*hidden_size, bias=bias)
+        self.inp_slow = nn.Linear(input_size, 4*hidden_size, bias=bias)
+        self.fast = FastWeight(hidden_size, lam=lam, eta=eta)
+        self.ln_ifog = nn.LayerNorm(4*hidden_size)
+        self.ln_c = nn.LayerNorm(hidden_size)
+        self.act = self.get_nonlinearity()
+
+        self.reset_parameters()
+
     def check_forward(self, x, h, c, A):
         self.check_forward_input(x)
         self.check_forward_hidden(x, h, '[0]')
@@ -249,4 +264,19 @@ class FastWeightLSTMCell(_RNNCellBase):
         self.check_forward_fast_weight(x, h, A)
 
     def forward(self, input, state):
-        pass
+        x = input
+        h, c, A = state
+        self.check_forward(x, h, c, A)
+        ifog_hat = self.ln_ifog(self.rec_slow(h) + self.inp_slow(x))
+        i = F.sigmoid(ifog_hat[:, :self.hidden_size])
+        f = F.sigmoid(ifog_hat[:, self.hidden_size:2*self.hidden_size])
+        o = F.sigmoid(ifog_hat[:, 2*self.hidden_size:3*self.hidden_size])
+        g_hat = ifog_hat[:, -self.hidden_size:]
+        g = self.act(g_hat)
+        A_, g_ = self.fast(A, self.act(g))
+        c_ = self.ln_c(f * c + i * self.act(g_hat + g_))
+        h_ = o * self.act(c_)
+        output = h_
+        state = (h_, c_, A_)
+        return output, state
+

@@ -18,8 +18,7 @@ class FastWeight(nn.Module):
         self.lam = lam
         self.eta = eta
 
-    def forward(self, A, h):
-        return (
-            fast_weight_update(A, h, h, self.lam, self.eta), 
-            fast_weight_query(A, h)
-        )
+    def forward(self, A, x):
+        A_ = fast_weight_update(A, x, x, self.lam, self.eta)
+        x_ = fast_weight_query(A_, x)
+        return (A_, x_)
