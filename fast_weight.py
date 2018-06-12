@@ -5,10 +5,12 @@ import torch.nn.functional as F
 
 
 def fast_weight_update(A, x1, x2, lam=1., eta=1., mode='hebb'):
+    x1_x2_outer = torch.bmm(x1.unsqueeze(2), x2.unsqueeze(1))
     if mode == 'hebb':
-        return A * lam + torch.bmm(x1.unsqueeze(2), x2.unsqueeze(1)) * eta
+        return lam * A + eta * x1_x2_outer
     elif mode == 'oja':
-        return A #[TODO] implement this
+        x1_x2_inner = torch.bmm(x1.unsqueeze(1), x2.unsqueeze(2))
+        return (1. - eta * x1_x2_inner) * A + eta * x1_x2_outer
     elif mode == 'sanger':
         return A #[TODO] implement this
     else:
@@ -34,11 +36,11 @@ class FastWeight(nn.Module):
     def read(self, A, x):
         return fast_weight_query(A, x)
 
-    def write(self, A, x):
-        return fast_weight_update(A, x, x, self.lam, self.eta, self.mode)
+    def write(self, A, x1, x2):
+        return fast_weight_update(A, x1, x2, self.lam, self.eta, self.mode)
 
     def forward(self, A, x):
-        A_ = self.write(A, x)
+        A_ = self.write(A, x, x)
         x_ = self.read(A_, x)
         return (A_, x_)
 

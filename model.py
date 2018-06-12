@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from rnn_cells import RNNCell, LSTMCell, FastWeightRNNCell, FastWeightLSTMCell, RNNCellStack
+from rnn_cells import RNNCell, LSTMCell, FastWeightRNNCell, FastWeightLSTMCell, DifferentiablePlasticityRNNCell, RNNCellStack
 
 
 def position_encoding(sentence_size, embedding_size):
@@ -29,6 +29,8 @@ def create_rnn(cell_type, embed_size, hidden_size, num_layers, **rnn_config):
         rnn_cell = FastWeightRNNCell
     elif cell_type=='fw-lstm':
         rnn_cell = FastWeightLSTMCell
+    elif cell_type=='dp-rnn':
+        rnn_cell = DifferentiablePlasticityRNNCell
     else:
         raise RuntimeError("unsupported RNN cell type {}".format(cell_type))
     return RNNCellStack([rnn_cell(embed_size if _i==0 else hidden_size, hidden_size, **rnn_config) for _i in range(num_layers)])

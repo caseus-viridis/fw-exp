@@ -61,18 +61,19 @@ class _RNNCellBase(nn.Module):
             return torch.zeros(batch_size, self.hidden_size)
         elif isinstance(self, (LSTMCell)):
             return (
-                torch.zeros(batch_size, self.hidden_size), 
+                torch.zeros(batch_size, self.hidden_size),
                 torch.zeros(batch_size, self.hidden_size)
             )
-        elif isinstance(self, (FastWeightRNNCell)):
+        elif isinstance(self,
+                        (FastWeightRNNCell, DifferentiablePlasticityRNNCell)):
             return (
-                torch.zeros(batch_size, self.hidden_size), 
+                torch.zeros(batch_size, self.hidden_size),
                 torch.zeros(batch_size, self.hidden_size, self.hidden_size)
             )
         elif isinstance(self, (FastWeightLSTMCell)):
             return (
-                torch.zeros(batch_size, self.hidden_size), 
-                torch.zeros(batch_size, self.hidden_size), 
+                torch.zeros(batch_size, self.hidden_size),
+                torch.zeros(batch_size, self.hidden_size),
                 torch.zeros(batch_size, self.hidden_size, self.hidden_size)
             )
         else:
@@ -141,7 +142,7 @@ class RNNCell(_RNNCellBase):
         self.check_forward_hidden(x, h)
 
     def forward(self, input, state):
-        x = input 
+        x = input
         h = state
         self.check_forward(x, h)
         if self.nonlinearity == "tanh":
@@ -227,8 +228,47 @@ class FastWeightRNNCell(_RNNCellBase):
         h, A = state
         self.check_forward(x, h, A)
         _h0 = self.rec_slow(h) + self.inp_slow(x) # the "preliminary vector" before activation
-        A_, _h = self.fast(A, self.act(_h0)) # next A and query result 
+        A_, _h = self.fast(A, self.act(_h0)) # next A and query result
         h_ = self.act(self.ln(_h0 + _h)) # next h
+        output = h_
+        state = (h_, A_)
+        return output, state
+
+
+class DifferentiablePlasticityRNNCell(_RNNCellBase):
+    """
+    Differentiable plasticity RNN cell
+    Miconi et al. 2018
+    """
+    def __init__(self, input_size, hidden_size, bias=True, nonlinearity="tanh", lam=None, eta=0.5, **kwargs):
+        super(DifferentiablePlasticityRNNCell, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.bias = bias
+        self.nonlinearity = nonlinearity
+        self.lam = lam
+        self.eta = eta
+
+        self.alpha = Parameter(torch.Tensor(hidden_size, hidden_size))
+        self.rec_slow = nn.Linear(hidden_size, hidden_size, bias=bias)
+        self.inp_slow = nn.Linear(input_size, hidden_size, bias=bias)
+        self.fast = FastWeight(hidden_size, lam=lam, eta=eta, mode='oja')
+        self.act = self.get_nonlinearity()
+
+        self.reset_parameters()
+
+    def check_forward(self, x, h, A):
+        self.check_forward_input(x)
+        self.check_forward_hidden(x, h)
+        self.check_forward_fast_weight(x, h, A)
+
+    def forward(self, input, state):
+        x = input
+        h, A = state
+        self.check_forward(x, h, A)
+        _h = self.fast.read(self.alpha * A, h)  # query fast weight
+        h_ = self.act(self.rec_slow(h) + self.inp_slow(x) + _h)  # next h
+        A_ = self.fast.write(A, h, h_)  # update fast weight
         output = h_
         state = (h_, A_)
         return output, state
@@ -279,4 +319,3 @@ class FastWeightLSTMCell(_RNNCellBase):
         output = h_
         state = (h_, c_, A_)
         return output, state
-
