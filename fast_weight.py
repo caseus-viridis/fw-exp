@@ -18,7 +18,7 @@ def fast_weight_update(A, x1, x2, lam=1., eta=1., mode='hebb'):
 
 
 def fast_weight_query(A, x):
-    return torch.matmul(A, x.unsqueeze(2)).squeeze()
+    return torch.bmm(A, x.unsqueeze(2)).squeeze()
 
 
 class FastWeight(nn.Module):

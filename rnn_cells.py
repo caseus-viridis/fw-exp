@@ -145,6 +145,7 @@ class RNNCell(_RNNCellBase):
         x = input
         h = state
         self.check_forward(x, h)
+
         if self.nonlinearity == "tanh":
             func = self._backend.RNNTanhCell
         elif self.nonlinearity == "relu":
@@ -152,6 +153,7 @@ class RNNCell(_RNNCellBase):
         else:
             raise RuntimeError(
                 "Unknown nonlinearity: {}".format(self.nonlinearity))
+        
         state = output = func(
             x, h,
             self.weight_ih, self.weight_hh,
@@ -186,11 +188,13 @@ class LSTMCell(_RNNCellBase):
         x = input
         h, c = state
         self.check_forward(x, h, c)
+
         h_, c_ = self._backend.LSTMCell(
             x, (h, c),
             self.weight_ih, self.weight_hh,
             self.bias_ih, self.bias_hh,
         )
+
         output = h_
         state = (h_, c_)
         return output, state
@@ -227,9 +231,11 @@ class FastWeightRNNCell(_RNNCellBase):
         x = input
         h, A = state
         self.check_forward(x, h, A)
+
         _h0 = self.rec_slow(h) + self.inp_slow(x) # the "preliminary vector" before activation
         A_, _h = self.fast(A, self.act(_h0)) # next A and query result
         h_ = self.act(self.ln(_h0 + _h)) # next h
+
         output = h_
         state = (h_, A_)
         return output, state
@@ -266,9 +272,11 @@ class DifferentiablePlasticityRNNCell(_RNNCellBase):
         x = input
         h, A = state
         self.check_forward(x, h, A)
+
         _h = self.fast.read(self.alpha * A, h)  # query fast weight
         h_ = self.act(self.rec_slow(h) + self.inp_slow(x) + _h)  # next h
         A_ = self.fast.write(A, h, h_)  # update fast weight
+
         output = h_
         state = (h_, A_)
         return output, state
@@ -307,6 +315,7 @@ class FastWeightLSTMCell(_RNNCellBase):
         x = input
         h, c, A = state
         self.check_forward(x, h, c, A)
+
         ifog_hat = self.ln_ifog(self.rec_slow(h) + self.inp_slow(x))
         i = F.sigmoid(ifog_hat[:, :self.hidden_size])
         f = F.sigmoid(ifog_hat[:, self.hidden_size:2*self.hidden_size])
@@ -316,6 +325,7 @@ class FastWeightLSTMCell(_RNNCellBase):
         A_, g_ = self.fast(A, self.act(g))
         c_ = self.ln_c(f * c + i * self.act(g_hat + g_))
         h_ = o * self.act(c_)
+
         output = h_
         state = (h_, c_, A_)
         return output, state
