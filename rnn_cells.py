@@ -322,7 +322,7 @@ class FastWeightLSTMCell(_RNNCellBase):
         o = F.sigmoid(ifog_hat[:, 2*self.hidden_size:3*self.hidden_size])
         g_hat = ifog_hat[:, -self.hidden_size:]
         g = self.act(g_hat)
-        A_, g_ = self.fast(A, self.act(g))
+        A_, g_ = self.fast(A, g)
         c_ = self.ln_c(f * c + i * self.act(g_hat + g_))
         h_ = o * self.act(c_)
 
